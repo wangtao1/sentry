@@ -13,10 +13,7 @@ from random import Random
 
 import pytz
 
-from django.contrib.webdesign.lorem_ipsum import (
-    WORDS,
-    words,
-)
+from django.contrib.webdesign.lorem_ipsum import WORDS
 from django.core.urlresolvers import reverse
 from django.utils.safestring import mark_safe
 
