@@ -4,6 +4,7 @@ from social_auth.models import UserSocialAuth
 from sentry.models import Activity, Event, GroupMeta
 from sentry.plugins import Plugin
 from sentry.plugins.base import JSONResponse
+from sentry.plugins.base.configuration import default_issue_plugin_config
 from sentry.utils.auth import get_auth_providers
 from sentry.utils.http import absolute_uri
 from sentry.utils.safe import safe_execute
@@ -81,12 +82,6 @@ class IssueTrackingPlugin2(Plugin):
         """
         return 'Unlink %s Issue' % self.get_title()
 
-    # def get_new_issue_form(self, request, group, event, **kwargs):
-    #     """
-    #     Return a Form for the "Create new issue" page.
-    #     """
-    #     return self.new_issue_form(request.POST or None, initial=self.get_initial_form_data(request, group, event))
-
     def get_new_issue_fields(self, request, group, event, **kwargs):
         return [{
             'name': 'title',
@@ -107,12 +102,6 @@ class IssueTrackingPlugin2(Plugin):
         """
         return []
 
-    # def get_link_existing_issue_form(self, request, group, event, **kwargs):
-    #     if not self.link_issue_form:
-    #         return None
-    #     return self.link_issue_form(request.POST or None,
-    #                                 initial=self.get_initial_link_form_data(request, group, event))
-
     def get_link_existing_issue_fields(self, request, group, event, **kwargs):
         return [{
             'name': 'issue_id',
@@ -127,6 +116,12 @@ class IssueTrackingPlugin2(Plugin):
             'default': absolute_uri(group.get_absolute_url()),
             'type': 'textarea'
         }]
+
+    def get_configure_plugin_fields(self, request, project, **kwargs):
+        """
+        Must be overridden by plugins that require configuration.
+        """
+        raise NotImplementedError
 
     def get_issue_url(self, group, issue_id, **kwargs):
         """
@@ -162,24 +157,11 @@ class IssueTrackingPlugin2(Plugin):
         """
         pass
 
-    # def get_initial_form_data(self, request, group, event, **kwargs):
-    #     return {
-    #         'description': self._get_group_description(request, group, event),
-    #         'title': self._get_group_title(request, group, event),
-    #     }
-
-    # def get_initial_link_form_data(self, request, group, event, **kwargs):
-    #     return {}
-
     def has_auth_configured(self, **kwargs):
         if not self.auth_provider:
             return True
 
         return self.auth_provider in get_auth_providers()
-
-    # def handle_unlink_issue(self, request, group, **kwargs):
-    #     GroupMeta.objects.unset_value(group, '%s:tid' % self.get_conf_key())
-    #     return self.redirect(group.get_absolute_url())
 
     def view_create(self, request, group, **kwargs):
         # TODO: check auth
@@ -255,6 +237,16 @@ class IssueTrackingPlugin2(Plugin):
         and 'autocomplete_query'
         """
         return Response()
+
+    def view_configure(self, request, project, **kwargs):
+        if request.method == 'GET':
+            return Response(self.get_configure_plugin_fields(request, project, **kwargs))
+        self.configure(project, request.DATA)
+        return Response({'sucess': True, 'message': 'Successfully updated configuration.'})
+
+    def configure(self, project, form_data):
+        """Configures the plugin"""
+        default_issue_plugin_config(self, project, form_data)
 
     # def view(self, request, group, **kwargs):
     #     has_auth_configured = self.has_auth_configured()
